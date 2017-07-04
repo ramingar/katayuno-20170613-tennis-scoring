@@ -1,164 +1,230 @@
 import test from 'tape';
 
 const Score = function () {
-    return {show};
+    const scoreConversion = {0: 0, 1: 15, 2: 30, 3: 40, 'adv': 'advantage'};
+    let points = 0;
+    let games = 0;
+    let rival = null;
+
+    const setRival = function (r = Score()) {
+        rival = r;
+    };
+
+    const addGame = function () {
+        games = games + 1;
+        resetPoints();
+    };
+
+    const addPoint = function () {
+        points = points + 1;
+    };
+
+    const getPoints = function () {
+        return points;
+    };
+
+    const getGames = function () {
+        return games;
+    };
+
+    const resetPoints = function () {
+        points = 0;
+    };
+
+    const show = function () {
+        let auxPoints = points;
+        if (points > 3) {
+            if (points > rival.getPoints()) {
+                auxPoints = 'adv';
+            } else {
+                auxPoints = 3;
+            }
+        }
+
+        return scoreConversion[auxPoints];
+    };
+    return {setRival, addPoint, getPoints, resetPoints, addGame, getGames, show};
 };
 
 // Component to test
 const Tennis = function () {
-    const scoreConversion = {0: 0, 1: 15, 2: 30, 3: 40};
-    const pointsPerPlayer = [0, 0];
-    const gameScores = [0, 0];
+    const player1 = Score();
+    const player2 = Score();
+    const players = [player1, player2];
     const PLAYER_1 = 0;
     const PLAYER_2 = 1;
 
+    player1.setRival(player2);
+    player2.setRival(player1);
+
     const resetGame = function () {
-        pointsPerPlayer[PLAYER_1] = 0;
-        pointsPerPlayer[PLAYER_2] = 0;
+        players[PLAYER_1].resetPoints();
+        players[PLAYER_2].resetPoints();
     };
 
     const checkMatchResult = function () {
-        // TODO: refactor with a map
-        if (playerWin(PLAYER_1, PLAYER_2)) {
-            updateGameScore(PLAYER_1);
-            resetGame();
-        }
 
-        if (playerWin(PLAYER_2, PLAYER_1)) {
-            updateGameScore(PLAYER_2);
+        const playerWinner = players.reduce((acc, player) => {
+            if (players.some((otherPlayer) => playerWin(player, otherPlayer))) {
+                acc = player;
+            }
+            return acc;
+        }, null);
+
+        if (playerWinner !== null) {
+            addGame(playerWinner);
             resetGame();
         }
     };
 
     const playerWin = function (player1, player2) {
-        let distanceBetweenPlayerPoints = pointsPerPlayer[player1] - pointsPerPlayer[player2];
-        return pointsPerPlayer[player1] > 3 && distanceBetweenPlayerPoints > 1;
+        let distanceBetweenPlayerPoints = player1.getPoints() - player2.getPoints();
+        return player1.getPoints() > 3 && distanceBetweenPlayerPoints > 1;
     };
 
-    const updateGameScore = function (player) {
-        gameScores[player] = gameScores[player] + 1;
+    const addGame = function (player) {
+        player.addGame();
     };
 
-    const ballWonForPlayer = function (playerNumber) {
-        pointsPerPlayer[playerNumber] = pointsPerPlayer[playerNumber] + 1;
+    const pointForPlayer = function (playerNumber) {
+        players[playerNumber].addPoint();
         checkMatchResult();
     };
 
     const scoreForPlayer = function (playerNumber) {
-        return scoreConversion[pointsPerPlayer[playerNumber]];
+        return players[playerNumber].show();
     };
 
     const winner = function () {
         let result = -1;
 
-        if (gameScores[PLAYER_1] > gameScores[PLAYER_2]) {
-            result = 0;
+        if (players[PLAYER_1].getGames() > players[PLAYER_2].getGames()) {
+            result = PLAYER_1;
         }
 
-        if (gameScores[PLAYER_1] < gameScores[PLAYER_2]) {
-            result = 1;
+        if (players[PLAYER_1].getGames() < players[PLAYER_2].getGames()) {
+            result = PLAYER_2;
         }
 
         return result;
     };
 
-    return {ballWonForPlayer, scoreForPlayer, winner};
+    return {pointForPlayer, scoreForPlayer, winner};
 };
 
 
 // TESTS
 test('-------- Component: testing player score', (assert) => {
     const message = 'Incorrect points for player one.';
-    const expected = 40;
+    const expectedScore = 40;
 
     const tennis = Tennis();
-    tennis.ballWonForPlayer(0);
-    tennis.ballWonForPlayer(0);
-    tennis.ballWonForPlayer(0);
+    tennis.pointForPlayer(0);
+    tennis.pointForPlayer(0);
+    tennis.pointForPlayer(0);
 
-    const actual = tennis.scoreForPlayer(0);
+    const actualScore = tennis.scoreForPlayer(0);
 
-    assert.equal(actual, expected, message);
+    assert.equal(actualScore, expectedScore, message);
+
+    assert.end();
+});
+
+test('-------- Component: testing player score in a deuce score', (assert) => {
+    const message = 'Incorrect score for player one';
+    const expectedScore = 40;
+
+    const tennis = Tennis();
+    tennis.pointForPlayer(0);
+    tennis.pointForPlayer(0);
+    tennis.pointForPlayer(0);
+    tennis.pointForPlayer(1);
+    tennis.pointForPlayer(1);
+    tennis.pointForPlayer(1);
+    tennis.pointForPlayer(0);
+    tennis.pointForPlayer(1);
+
+    const actualScore = tennis.scoreForPlayer(0);
+
+    assert.equal(actualScore, expectedScore, message);
+
+    assert.end();
+});
+
+test('-------- Component: testing player score when this player has advantage', (assert) => {
+    const message = 'Incorrect score for player one';
+    const expectedScore = 'advantage';
+
+    const tennis = Tennis();
+    tennis.pointForPlayer(0);
+    tennis.pointForPlayer(0);
+    tennis.pointForPlayer(0);
+    tennis.pointForPlayer(1);
+    tennis.pointForPlayer(1);
+    tennis.pointForPlayer(1);
+    tennis.pointForPlayer(0);
+
+    const actualScore = tennis.scoreForPlayer(0);
+
+    assert.equal(actualScore, expectedScore, message);
 
     assert.end();
 });
 
 test('-------- Component: testing which player won the match', (assert) => {
     const message = 'Player one is the winner';
-    const expected = 0;
+    const expectedWinner = 0;
 
     const tennis = Tennis();
-    tennis.ballWonForPlayer(0);
-    tennis.ballWonForPlayer(0);
-    tennis.ballWonForPlayer(0);
-    tennis.ballWonForPlayer(0);
+    tennis.pointForPlayer(0);
+    tennis.pointForPlayer(0);
+    tennis.pointForPlayer(0);
+    tennis.pointForPlayer(0);
 
-    const actual = tennis.winner();
+    const actualWinner = tennis.winner();
 
-    assert.equal(actual, expected, message);
+    assert.equal(actualWinner, expectedWinner, message);
 
     assert.end();
 });
 
-test('-------- Component: testing deuce', (assert) => {
+test('-------- Component: testing who is the winner while players are in a deuce', (assert) => {
     const message = 'There is not winner yet';
-    const expected = -1;
+    const expectedWinner = -1;
 
     const tennis = Tennis();
-    tennis.ballWonForPlayer(0);
-    tennis.ballWonForPlayer(0);
-    tennis.ballWonForPlayer(0);
-    tennis.ballWonForPlayer(1);
-    tennis.ballWonForPlayer(1);
-    tennis.ballWonForPlayer(1);
-    tennis.ballWonForPlayer(1);
+    tennis.pointForPlayer(0);
+    tennis.pointForPlayer(0);
+    tennis.pointForPlayer(0);
+    tennis.pointForPlayer(1);
+    tennis.pointForPlayer(1);
+    tennis.pointForPlayer(1);
+    tennis.pointForPlayer(1);
 
-    const actual = tennis.winner();
+    const actualWinner = tennis.winner();
 
-    assert.equal(actual, expected, message);
+    assert.equal(actualWinner, expectedWinner, message);
 
     assert.end();
 });
 
 test('-------- Component: testing winner after deuce', (assert) => {
     const message = 'Player 2 must be the winner';
-    const expected = 1;
+    const expectedWinner = 1;
 
     const tennis = Tennis();
-    tennis.ballWonForPlayer(0);
-    tennis.ballWonForPlayer(0);
-    tennis.ballWonForPlayer(0);
-    tennis.ballWonForPlayer(1);
-    tennis.ballWonForPlayer(1);
-    tennis.ballWonForPlayer(1);
-    tennis.ballWonForPlayer(1);
-    tennis.ballWonForPlayer(1);
+    tennis.pointForPlayer(0);
+    tennis.pointForPlayer(0);
+    tennis.pointForPlayer(0);
+    tennis.pointForPlayer(1);
+    tennis.pointForPlayer(1);
+    tennis.pointForPlayer(1);
+    tennis.pointForPlayer(1);
+    tennis.pointForPlayer(1);
 
-    const actual = tennis.winner();
+    const actualWinner = tennis.winner();
 
-    assert.equal(actual, expected, message);
+    assert.equal(actualWinner, expectedWinner, message);
 
     assert.end();
 });
-
-/* In progress...
- test('-------- Component: testing points after deuce', (assert) => {
- const message = 'Player 2 must have advantage';
- const expected = 1;
-
- const tennis = Tennis();
- tennis.ballWonForPlayer(0);
- tennis.ballWonForPlayer(0);
- tennis.ballWonForPlayer(0);
- tennis.ballWonForPlayer(1);
- tennis.ballWonForPlayer(1);
- tennis.ballWonForPlayer(1);
- tennis.ballWonForPlayer(1);
-
- const actual = tennis.scoreForPlayer(1);
-
- assert.equal(actual, expected, message);
-
- assert.end();
- });
- */
